@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the displayed timer in mm:ss format
     function updateTimerDisplay() {
-        console.log('Updating timer display'); // Debug: Track updates
+        console.log('Updating timer display, timer:', timer); // Debug: Track updates
         const minutes = Math.floor(timer / 60);
         const seconds = timer % 60;
         const timeStr = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Switch between work and break sessions when the timer runs out
     function switchSession() {
-        console.log('Switching session'); // Debug: Track session switches
+        console.log('Switching session, isWorkSession:', isWorkSession); // Debug: Track session switches
         if (isWorkSession) {
             alert("Focus session complete! Time for a break.");
             timer = breakTime;
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle timer tick (local or from Service Worker)
     function handleTick(data) {
-        console.log('Handling timer tick:', data); // Debug: Track tick updates
+        console.log('Handling timer tick, data:', data, 'timer before:', timer); // Debug: Track tick updates
         if (data && data.timer !== undefined) {
             timer = data.timer;
         } else {
@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             timer = Math.max(0, timer - elapsed); // Ensure timer doesn't go negative
         }
         lastTickTime = Date.now();
+        console.log('Timer after tick:', timer); // Debug: Track timer value
         if (timer <= 0) {
             clearInterval(interval); // Clear local interval
             if (useServiceWorker && navigator.serviceWorker.controller) {
@@ -83,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Start the timer using Service Worker or local setInterval
     function startTimer() {
-        console.log('Starting timer, isRunning:', isRunning); // Debug: Track start attempts
+        console.log('Starting timer, isRunning:', isRunning, 'timer:', timer); // Debug: Track start attempts
         if (!isRunning) {
             // If pausedTime exists, adjust timer for time spent paused
             if (pausedTime) {
@@ -126,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Stop (pause) the timer
     function stopTimer() {
-        console.log('Stopping timer, isRunning:', isRunning); // Debug: Track stop attempts
+        console.log('Stopping timer, isRunning:', isRunning, 'timer:', timer); // Debug: Track stop attempts
         if (isRunning) {
             if (useServiceWorker && navigator.serviceWorker.controller) {
                 console.log('Sending stop message to service worker');
@@ -149,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (useServiceWorker && navigator.serviceWorker.controller) {
                     navigator.serviceWorker.controller.postMessage({ action: 'start', initialTime: timer, interval: 5000 });
                 } else {
-                    stopTimer();
+                    clearInterval(interval);
                     interval = setInterval(() => handleTick(), 5000); // Use 5s interval in background
                 }
             }
