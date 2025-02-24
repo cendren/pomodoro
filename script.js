@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update the displayed timer in mm:ss format
     function updateTimerDisplay() {
-        console.log('Updating timer display, timer:', timer); // Debug: Track updates
+        console.log('Updating timer display, timer:', timer, 'isRunning:', isRunning); // Debug: Track updates
         const minutes = Math.floor(timer / 60);
         const seconds = timer % 60;
         const timeStr = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
@@ -62,7 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle timer tick (local or from Service Worker)
     function handleTick(data) {
-        console.log('Handling timer tick, data:', data, 'timer before:', timer); // Debug: Track tick updates
+        console.log('Handling timer tick, data:', data, 'timer before:', timer, 'isRunning:', isRunning); // Debug: Track tick updates
+        if (!isRunning) {
+            console.log('Timer tick ignored—timer is paused');
+            return; // Prevent tick if timer is paused
+        }
         if (data && data.timer !== undefined) {
             timer = data.timer;
         } else {
@@ -142,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle tab visibility changes
     document.addEventListener('visibilitychange', () => {
-        console.log('Tab visibility changed, isVisible:', !document.hidden); // Debug: Track visibility
+        console.log('Tab visibility changed, isVisible:', !document.hidden, 'isRunning:', isRunning); // Debug: Track visibility
         isTabVisible = !document.hidden;
         if (document.hidden) {
             // Tab is hidden, adjust interval if using Service Worker or local

@@ -8,9 +8,10 @@ self.addEventListener('message', (event) => {
         timer = event.data.initialTime;
         const interval = event.data.interval; // 1000ms or 5000ms
         isRunning = true;
-        console.log('Starting timer in service worker with interval:', interval, 'timer:', timer);
+        console.log('Starting timer in service worker with interval:', interval, 'timer:', timer, 'isRunning:', isRunning);
+        clearInterval(timerInterval); // Clear any existing interval
         timerInterval = setInterval(() => {
-            if (isRunning && timer > 0) { // Only count down if running
+            if (isRunning && timer > 0) { // Only count down if running and timer > 0
                 timer--;
                 self.clients.matchAll().then(clients => {
                     clients.forEach(client => {
@@ -36,7 +37,7 @@ self.addEventListener('message', (event) => {
             timerInterval = null;
         }
         isRunning = false;
-        console.log('Stopping timer in service worker, timer:', timer);
+        console.log('Stopping timer in service worker, timer:', timer, 'isRunning:', isRunning);
         self.clients.matchAll().then(clients => {
             clients.forEach(client => client.postMessage({ isRunning: false }));
         });
@@ -47,7 +48,7 @@ self.addEventListener('message', (event) => {
             timerInterval = null;
         }
         isRunning = false;
-        console.log('Resetting timer in service worker to:', timer);
+        console.log('Resetting timer in service worker to:', timer, 'isRunning:', isRunning);
         self.clients.matchAll().then(clients => {
             clients.forEach(client => client.postMessage({ timer: timer, isRunning: false }));
         });
