@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Your existing code goes here
     const workTime = 25 * 60;  
     const breakTime = 5 * 60;  
 
@@ -7,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let interval;
     let isWorkSession = true;
     let isRunning = false;
+    let lastTickTime = Date.now(); // Track the last time the timer ticked
 
     // Reference DOM elements
     const timerDisplay = document.getElementById('timer');
@@ -37,10 +37,19 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTimerDisplay();
     }
 
-    // Decrease the timer each second
+    // Calculate elapsed time based on real time
+    function calculateElapsedTime() {
+        const now = Date.now();
+        const elapsed = Math.floor((now - lastTickTime) / 1000); // Convert to seconds
+        return elapsed;
+    }
+
+    // Decrease the timer based on elapsed time
     function tick() {
         if (timer > 0) {
-            timer--;
+            const elapsed = calculateElapsedTime();
+            timer = Math.max(0, timer - elapsed); // Ensure timer doesn't go negative
+            lastTickTime = Date.now(); // Update the last tick time
             updateTimerDisplay();
         } else {
             clearInterval(interval);
@@ -51,9 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Start the interval timer
     function startInterval() {
-        interval = setInterval(tick, 1000);
-        isRunning = true;
-        startPauseButton.textContent = "Pause";
+        if (!isRunning) {
+            lastTickTime = Date.now(); // Reset the last tick time
+            interval = setInterval(tick, 1000); // Check every second
+            isRunning = true;
+            startPauseButton.textContent = "Pause";
+        }
     }
 
     // Stop (pause) the interval timer
@@ -62,6 +74,25 @@ document.addEventListener('DOMContentLoaded', () => {
         isRunning = false;
         startPauseButton.textContent = "Start";
     }
+
+    // Handle tab visibility changes
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // Tab is hidden, pause the interval but keep track of time
+            if (isRunning) {
+                stopInterval();
+                const elapsed = calculateElapsedTime();
+                timer = Math.max(0, timer - elapsed); // Adjust timer for elapsed time
+                updateTimerDisplay();
+            }
+        } else {
+            // Tab is visible, resume or recalculate
+            if (isRunning) {
+                lastTickTime = Date.now(); // Reset the last tick time
+                startInterval(); // Resume the interval
+            }
+        }
+    });
 
     // Toggle Start/Pause on button click
     startPauseButton.addEventListener('click', function() {
@@ -76,6 +107,10 @@ document.addEventListener('DOMContentLoaded', () => {
     resetButton.addEventListener('click', function() {
         stopInterval();
         timer = isWorkSession ? workTime : breakTime;
+        lastTickTime = Date.now(); // Reset the last tick time
         updateTimerDisplay();
     });
+
+    // Initialize the timer display
+    updateTimerDisplay();
 });

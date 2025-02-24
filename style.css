@@ -6,6 +6,7 @@ body {
   width: 100vw; /* Make the body take up the full viewport width */
   font-family: 'Roboto', sans-serif; /* Ensure font is applied */
   background-color: #f5f5f5; /* Optional: Add a background color */
+  color: #424242;
   display: flex; /* Use flexbox to center content */
   justify-content: center; /* Center horizontally */
   align-items: center; /* Center vertically */
