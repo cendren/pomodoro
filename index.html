@@ -4,8 +4,8 @@
   <meta charset="UTF-8" viewport="width=device-width, initial-scale=1.0">
   <link href="https://fonts.cdnfonts.com/css/roboto" rel="stylesheet">
   <link href="style.css"  rel="stylesheet">
-  <title>Pomodoro Timer2</title>
-  
+  <script src="script.js" defer></script>
+  <title>Pomodoro Timer</title>
 </head>
 <body>
   <div id="container">
@@ -15,88 +15,6 @@
     <button id="startPause">Start</button>
     <button id="reset">Reset</button>
   </div>
-
-  <script>
-    // Set durations in seconds
-    const workTime = 25 * 60;  
-    const breakTime = 5 * 60;  
-
-    let timer = workTime; // initialize with work time
-    let interval;
-    let isWorkSession = true;
-    let isRunning = false;
-
-    // Reference DOM elements
-    const timerDisplay = document.getElementById('timer');
-    const startPauseButton = document.getElementById('startPause');
-    const resetButton = document.getElementById('reset');
-    const sessionLabel = document.getElementById('sessionLabel');
-
-    // Update the displayed timer in mm:ss format
-    function updateTimerDisplay() {
-      const minutes = Math.floor(timer / 60);
-      const seconds = timer % 60;
-      timerDisplay.textContent = 
-        `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
-    }
-
-    // Switch between work and break sessions when the timer runs out
-    function switchSession() {
-      if (isWorkSession) {
-        alert("Work session complete! Time for a break.");
-        timer = breakTime;
-        sessionLabel.textContent = "Break Session";
-      } else {
-        alert("Break over! Back to work.");
-        timer = workTime;
-        sessionLabel.textContent = "Work Session";
-      }
-      isWorkSession = !isWorkSession;
-      updateTimerDisplay();
-    }
-
-    // Decrease the timer each second
-    function tick() {
-      if (timer > 0) {
-        timer--;
-        updateTimerDisplay();
-      } else {
-        clearInterval(interval);
-        switchSession();
-        startInterval(); // Automatically start the next session
-      }
-    }
-
-    // Start the interval timer
-    function startInterval() {
-      interval = setInterval(tick, 1000);
-      isRunning = true;
-      startPauseButton.textContent = "Pause";
-    }
-
-    // Stop (pause) the interval timer
-    function stopInterval() {
-      clearInterval(interval);
-      isRunning = false;
-      startPauseButton.textContent = "Start";
-    }
-
-    // Toggle Start/Pause on button click
-    startPauseButton.addEventListener('click', function() {
-      if (isRunning) {
-        stopInterval();
-      } else {
-        startInterval();
-      }
-    });
-
-    // Reset timer to the start of the current session
-    resetButton.addEventListener('click', function() {
-      stopInterval();
-      timer = isWorkSession ? workTime : breakTime;
-      updateTimerDisplay();
-    });
-  </script>
 </body>
 </html>
  ⁠
