@@ -71,7 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
             timer = data.timer;
         } else {
             const elapsed = calculateElapsedTime(lastTickTime);
-            timer = Math.max(0, timer - elapsed); // Ensure timer doesn't go negative
+            if (elapsed > 0) { // Only update if time has elapsed
+                timer = Math.max(0, timer - 1); // Decrease by 1 second to ensure consistent speed
+            }
         }
         lastTickTime = Date.now();
         console.log('Timer after tick:', timer); // Debug: Track timer value
@@ -122,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             } else {
                 // Fallback: Use local setInterval
+                clearInterval(interval); // Ensure no previous interval is running
                 interval = setInterval(() => handleTick(), intervalMs);
             }
             isRunning = true;
@@ -155,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     navigator.serviceWorker.controller.postMessage({ action: 'start', initialTime: timer, interval: 5000 });
                 } else {
                     clearInterval(interval);
+                    if (interval) clearInterval(interval); // Ensure no duplicate intervals
                     interval = setInterval(() => handleTick(), 5000); // Use 5s interval in background
                 }
             }
@@ -165,6 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     navigator.serviceWorker.controller.postMessage({ action: 'start', initialTime: timer, interval: 1000 });
                 } else {
                     clearInterval(interval);
+                    if (interval) clearInterval(interval); // Ensure no duplicate intervals
                     interval = setInterval(() => handleTick(), 1000); // Use 1s interval when visible
                 }
             }
