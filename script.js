@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRunning = false; // Ensure the timer starts in a paused state
     let lastTickTime = Date.now(); // Track the last time the timer ticked
     let isFocusSession = true; // Track whether it's a focus or break session
+    let interval = null; // Local interval for fallback (explicitly initialized)
 
     // Reference DOM elements
     const timerDisplay = document.getElementById('timer');
@@ -121,7 +122,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Sending stop message to service worker');
                 navigator.serviceWorker.controller.postMessage({ action: 'stop' });
             }
-            clearInterval(interval); // Clear local interval
+            if (interval) { // Only clear interval if it exists (fix for ReferenceError)
+                clearInterval(interval); // Clear local interval
+            }
             isRunning = false;
             startPauseButton.textContent = "Start"; // Update button to "Start"
         }
