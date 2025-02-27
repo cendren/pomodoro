@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isWorkSession = true;
     let isRunning = false; // Ensure the timer starts in a paused state
     let lastTickTime = Date.now(); // Track the last time the timer ticked
-    let pausedTime = null; // Track the time when the timer was paused (but not used for adjustment on resume)
+    let pausedTime = null; // Track the time when the timer was paused (for logging only, not for adjustment)
     let interval = null; // Local interval for fallback
     let isTabVisible = !document.hidden; // Track tab visibility
 
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(interval); // Clear local interval
             isRunning = false;
             startPauseButton.textContent = "Start"; // Update button to "Start"
-            pausedTime = Date.now(); // Record the pause time (for logging, but not used for adjustment)
+            pausedTime = Date.now(); // Record the pause time (for logging only, not for adjustment)
         }
     }
 
