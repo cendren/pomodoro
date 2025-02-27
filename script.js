@@ -111,6 +111,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             isRunning = true;
             startPauseButton.textContent = "Pause"; // Update button to "Pause"
+            // NEW: Immediately update sessionLabel when resuming
+            if (timer > 0 && timer > 1499) { // If timer is more than 00:01 (1500+ seconds)
+                sessionLabel.textContent = "Focus Session";
+            } else if (timer > 0 && timer <= 1499) { // If timer is between 24:59 and 00:01
+                sessionLabel.textContent = "Focus Session"; // Keep it as Focus Session for resumed focus
+            } else {
+                sessionLabel.textContent = "Break Time"; // If timer is 0 or less
+            }
         }
     }
 
@@ -122,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Sending stop message to service worker');
                 navigator.serviceWorker.controller.postMessage({ action: 'stop' });
             }
-            if (interval) { // Only clear interval if it exists (fix for ReferenceError)
+            if (interval) { // Only clear interval if it exists
                 clearInterval(interval); // Clear local interval
             }
             isRunning = false;
