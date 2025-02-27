@@ -9,7 +9,9 @@ self.addEventListener('message', (event) => {
         const interval = event.data.interval; // 1000ms or 5000ms
         isRunning = true;
         console.log('Starting timer in service worker with interval:', interval, 'timer:', timer, 'isRunning:', isRunning);
-        clearInterval(timerInterval); // Clear any existing interval
+        if (timerInterval) {
+            clearInterval(timerInterval); // Clear any existing interval to prevent duplicates
+        }
         timerInterval = setInterval(() => {
             if (isRunning && timer > 0) { // Only count down if running and timer > 0
                 timer--;

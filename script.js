@@ -151,25 +151,23 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('visibilitychange', () => {
         console.log('Tab visibility changed, isVisible:', !document.hidden, 'isRunning:', isRunning); // Debug: Track visibility
         isTabVisible = !document.hidden;
-        if (document.hidden) {
-            // Tab is hidden, adjust interval if using Service Worker or local
-            if (isRunning) {
+        if (isRunning) { // Only adjust if the timer is running
+            if (document.hidden) {
+                // Tab is hidden, adjust to 5-second interval
                 if (useServiceWorker && navigator.serviceWorker.controller) {
+                    console.log('Hiding tab, sending start message to service worker with 5s interval');
                     navigator.serviceWorker.controller.postMessage({ action: 'start', initialTime: timer, interval: 5000 });
                 } else {
                     clearInterval(interval);
-                    if (interval) clearInterval(interval); // Ensure no duplicate intervals
                     interval = setInterval(() => handleTick(), 5000); // Use 5s interval in background
                 }
-            }
-        } else {
-            // Tab is visible, resume with 1-second interval
-            if (isRunning) {
+            } else {
+                // Tab is visible, resume with 1-second interval
                 if (useServiceWorker && navigator.serviceWorker.controller) {
+                    console.log('Showing tab, sending start message to service worker with 1s interval');
                     navigator.serviceWorker.controller.postMessage({ action: 'start', initialTime: timer, interval: 1000 });
                 } else {
                     clearInterval(interval);
-                    if (interval) clearInterval(interval); // Ensure no duplicate intervals
                     interval = setInterval(() => handleTick(), 1000); // Use 1s interval when visible
                 }
             }
