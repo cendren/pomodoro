@@ -41,7 +41,7 @@ self.addEventListener('message', (event) => {
         isRunning = false;
         console.log('Stopping timer in service worker, timer:', timer, 'isRunning:', isRunning);
         self.clients.matchAll().then(clients => {
-            clients.forEach(client => client.postMessage({ isRunning: false }));
+            clients.forEach(client => client.postMessage({ timer: timer, isRunning: false })); // Send current timer value
         });
     } else if (event.data.action === 'reset') {
         timer = event.data.initialTime;

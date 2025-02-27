@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isWorkSession = true;
     let isRunning = false; // Ensure the timer starts in a paused state
     let lastTickTime = Date.now(); // Track the last time the timer ticked
-    let pausedTime = null; // Track the time when the timer was paused
+    let pausedTime = null; // Track the time when the timer was paused (but not used for adjustment on resume)
     let interval = null; // Local interval for fallback
     let isTabVisible = !document.hidden; // Track tab visibility
 
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Calculate elapsed time based on real time
+    // Calculate elapsed time based on real time (used only for active counting, not pausing)
     function calculateElapsedTime(startTime, endTime = Date.now()) {
         return Math.floor((endTime - startTime) / 1000); // Convert to seconds
     }
@@ -92,11 +92,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function startTimer() {
         console.log('Starting timer, isRunning:', isRunning, 'timer:', timer); // Debug: Track start attempts
         if (!isRunning) {
-            // If pausedTime exists, adjust timer for time spent paused
+            // Reset pausedTime if resuming, but don’t adjust timer for elapsed pause time
             if (pausedTime) {
-                const elapsedWhilePaused = calculateElapsedTime(pausedTime);
-                timer = Math.max(0, timer - elapsedWhilePaused);
-                pausedTime = null;
+                pausedTime = null; // Clear paused time without adjusting timer
                 updateTimerDisplay();
             }
             
@@ -143,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(interval); // Clear local interval
             isRunning = false;
             startPauseButton.textContent = "Start"; // Update button to "Start"
-            pausedTime = Date.now(); // Record the time when paused
+            pausedTime = Date.now(); // Record the pause time (for logging, but not used for adjustment)
         }
     }
 
