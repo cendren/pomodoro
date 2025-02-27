@@ -1,27 +1,21 @@
-// Check if Service Worker is supported
+// Check if Service Worker is supported jjj
 const useServiceWorker = 'serviceWorker' in navigator;
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded event fired'); // Debug: Confirm script is loading
     const workTime = 25 * 60;  // 25 minutes in seconds
-    const breakTime = 5 * 60;  // 5 minutes in seconds
 
-    let timer = workTime; // Initialize with work time
-    let isWorkSession = true;
+    let timer = workTime; // Initialize with 25 minutes
     let isRunning = false; // Ensure the timer starts in a paused state
     let lastTickTime = Date.now(); // Track the last time the timer ticked
-    let pausedTime = null; // Track the time when the timer was paused (for logging only, not for adjustment)
-    let interval = null; // Local interval for fallback
-    let isTabVisible = !document.hidden; // Track tab visibility
 
     // Reference DOM elements
     const timerDisplay = document.getElementById('timer');
     const startPauseButton = document.getElementById('startPause');
     const resetButton = document.getElementById('reset');
-    const sessionLabel = document.getElementById('sessionLabel');
 
-    if (!timerDisplay || !startPauseButton || !resetButton || !sessionLabel) {
-        console.error('One or more DOM elements not found:', { timerDisplay, startPauseButton, resetButton, sessionLabel });
+    if (!timerDisplay || !startPauseButton || !resetButton) {
+        console.error('One or more DOM elements not found:', { timerDisplay, startPauseButton, resetButton });
         return; // Exit if elements are missing
     }
 
@@ -32,35 +26,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const seconds = timer % 60;
         const timeStr = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
         timerDisplay.textContent = timeStr;
-        document.title = `${isWorkSession ? 'Focus' : 'Break'} - ${timeStr}`; // Update title
+        document.title = `Pomodoro - ${timeStr}`; // Update title
     }
 
-    // Switch between work and break sessions when the timer runs out
-    function switchSession() {
-        console.log('Switching session, isWorkSession:', isWorkSession); // Debug: Track session switches
-        if (isWorkSession) {
-            alert("Focus session complete! Time for a break.");
-            timer = breakTime;
-            sessionLabel.textContent = "Break Session";
-        } else {
-            alert("Break over! Back to focus.");
-            timer = workTime;
-            sessionLabel.textContent = "Focus Session";
-        }
-        isWorkSession = !isWorkSession;
-        updateTimerDisplay();
-        if (isRunning) {
-            stopTimer(); // Stop the current timer
-            startTimer(); // Start the new session automatically
-        }
-    }
-
-    // Calculate elapsed time based on real time (used only for active counting, not pausing)
+    // Calculate elapsed time based on real time
     function calculateElapsedTime(startTime, endTime = Date.now()) {
         return Math.floor((endTime - startTime) / 1000); // Convert to seconds
     }
 
-    // Handle timer tick (local or from Service Worker)
+    // Handle timer tick (from Service Worker or local)
     function handleTick(data) {
         console.log('Handling timer tick, data:', data, 'timer before:', timer, 'isRunning:', isRunning); // Debug: Track tick updates
         if (!isRunning) {
@@ -72,18 +46,18 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             const elapsed = calculateElapsedTime(lastTickTime);
             if (elapsed > 0) { // Only update if time has elapsed
-                timer = Math.max(0, timer - 1); // Decrease by 1 second to ensure consistent speed
+                timer = Math.max(0, timer - elapsed); // Decrease by elapsed seconds
             }
         }
         lastTickTime = Date.now();
         console.log('Timer after tick:', timer); // Debug: Track timer value
         if (timer <= 0) {
-            clearInterval(interval); // Clear local interval
             if (useServiceWorker && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({ action: 'stop' });
             }
-            switchSession();
-            startTimer();
+            isRunning = false;
+            startPauseButton.textContent = "Start"; // Reset button to "Start" when timer ends
+            updateTimerDisplay();
         }
         updateTimerDisplay();
     }
@@ -92,14 +66,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function startTimer() {
         console.log('Starting timer, isRunning:', isRunning, 'timer:', timer); // Debug: Track start attempts
         if (!isRunning) {
-            // Reset pausedTime if resuming, but don’t adjust timer for elapsed pause time
-            if (pausedTime) {
-                pausedTime = null; // Clear paused time without adjusting timer
-                updateTimerDisplay();
-            }
-            
             lastTickTime = Date.now();
-            const intervalMs = isTabVisible ? 1000 : 5000; // 1s when visible, 5s when hidden
+            const intervalMs = 1000; // Always use 1-second intervals for accuracy
             if (useServiceWorker && navigator.serviceWorker.controller) {
                 console.log('Sending start message to service worker:', { action: 'start', initialTime: timer, interval: intervalMs });
                 // Communicate with the service worker to start the timer
@@ -141,35 +109,26 @@ document.addEventListener('DOMContentLoaded', () => {
             clearInterval(interval); // Clear local interval
             isRunning = false;
             startPauseButton.textContent = "Start"; // Update button to "Start"
-            pausedTime = Date.now(); // Record the pause time (for logging only, not for adjustment)
         }
     }
 
-    // Handle tab visibility changes
+    // Reset timer to 25 minutes and stop it
+    function resetTimer() {
+        console.log('Resetting timer'); // Debug: Track reset attempts
+        stopTimer();
+        timer = workTime;
+        lastTickTime = Date.now();
+        updateTimerDisplay();
+        if (useServiceWorker && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({ action: 'reset', initialTime: timer });
+        }
+    }
+
+    // Handle tab visibility changes (optional, since service worker handles background)
     document.addEventListener('visibilitychange', () => {
         console.log('Tab visibility changed, isVisible:', !document.hidden, 'isRunning:', isRunning); // Debug: Track visibility
         isTabVisible = !document.hidden;
-        if (isRunning) { // Only adjust if the timer is running
-            if (document.hidden) {
-                // Tab is hidden, adjust to 5-second interval
-                if (useServiceWorker && navigator.serviceWorker.controller) {
-                    console.log('Hiding tab, sending start message to service worker with 5s interval');
-                    navigator.serviceWorker.controller.postMessage({ action: 'start', initialTime: timer, interval: 5000 });
-                } else {
-                    clearInterval(interval);
-                    interval = setInterval(() => handleTick(), 5000); // Use 5s interval in background
-                }
-            } else {
-                // Tab is visible, resume with 1-second interval
-                if (useServiceWorker && navigator.serviceWorker.controller) {
-                    console.log('Showing tab, sending start message to service worker with 1s interval');
-                    navigator.serviceWorker.controller.postMessage({ action: 'start', initialTime: timer, interval: 1000 });
-                } else {
-                    clearInterval(interval);
-                    interval = setInterval(() => handleTick(), 1000); // Use 1s interval when visible
-                }
-            }
-        }
+        // No need to adjust intervals here—service worker handles background timing
     });
 
     // Toggle Start/Pause on button click
@@ -182,17 +141,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Reset timer to the start of the current session
+    // Reset button click handler
     resetButton.addEventListener('click', function() {
-        console.log('Reset button clicked'); // Debug: Track reset clicks
-        stopTimer();
-        timer = isWorkSession ? workTime : breakTime;
-        lastTickTime = Date.now();
-        pausedTime = null;
-        if (useServiceWorker && navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({ action: 'reset', initialTime: timer });
-        }
-        updateTimerDisplay();
+        resetTimer();
     });
 
     // Initialize the timer display without auto-starting

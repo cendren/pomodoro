@@ -1,3 +1,5 @@
+// v1
+
 let timer = null;
 let timerInterval = null;
 let isRunning = false;
@@ -6,7 +8,7 @@ self.addEventListener('message', (event) => {
     console.log('Service Worker received message:', event.data); // Debug: Track incoming messages
     if (event.data.action === 'start') {
         timer = event.data.initialTime;
-        const interval = event.data.interval; // 1000ms or 5000ms
+        const interval = event.data.interval; // 1000ms (1 second)
         isRunning = true;
         console.log('Starting timer in service worker with interval:', interval, 'timer:', timer, 'isRunning:', isRunning);
         if (timerInterval) {
