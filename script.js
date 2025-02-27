@@ -1,32 +1,46 @@
-// Check if Service Worker is supported jjj
+// Check if Service Worker is supported
 const useServiceWorker = 'serviceWorker' in navigator;
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded event fired'); // Debug: Confirm script is loading
     const workTime = 25 * 60;  // 25 minutes in seconds
+    const breakTime = 5 * 60;  // 5 minutes in seconds (optional, for future expansion)
 
     let timer = workTime; // Initialize with 25 minutes
     let isRunning = false; // Ensure the timer starts in a paused state
     let lastTickTime = Date.now(); // Track the last time the timer ticked
+    let isFocusSession = true; // Track whether it's a focus or break session
 
     // Reference DOM elements
     const timerDisplay = document.getElementById('timer');
     const startPauseButton = document.getElementById('startPause');
     const resetButton = document.getElementById('reset');
+    const sessionLabel = document.getElementById('sessionLabel');
 
-    if (!timerDisplay || !startPauseButton || !resetButton) {
-        console.error('One or more DOM elements not found:', { timerDisplay, startPauseButton, resetButton });
+    if (!timerDisplay || !startPauseButton || !resetButton || !sessionLabel) {
+        console.error('One or more DOM elements not found:', { timerDisplay, startPauseButton, resetButton, sessionLabel });
         return; // Exit if elements are missing
     }
 
-    // Update the displayed timer in mm:ss format
+    // Update the displayed timer and session label in mm:ss format
     function updateTimerDisplay() {
-        console.log('Updating timer display, timer:', timer, 'isRunning:', isRunning); // Debug: Track updates
+        console.log('Updating timer display, timer:', timer, 'isRunning:', isRunning, 'isFocusSession:', isFocusSession); // Debug: Track updates
         const minutes = Math.floor(timer / 60);
         const seconds = timer % 60;
         const timeStr = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
         timerDisplay.textContent = timeStr;
         document.title = `Pomodoro - ${timeStr}`; // Update title
+
+        // Update session label based on state
+        if (!isRunning && timer > 0 && timer <= 1499) { // Between 24:59 and 00:01 (1–1499 seconds)
+            sessionLabel.textContent = "Paused";
+        } else if (timer <= 0) {
+            sessionLabel.textContent = "Break Time";
+        } else if (isFocusSession) {
+            sessionLabel.textContent = "Focus Session";
+        } else {
+            sessionLabel.textContent = "Break Time";
+        }
     }
 
     // Calculate elapsed time based on real time
@@ -56,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 navigator.serviceWorker.controller.postMessage({ action: 'stop' });
             }
             isRunning = false;
+            isFocusSession = false; // Switch to break session when timer ends
             startPauseButton.textContent = "Start"; // Reset button to "Start" when timer ends
             updateTimerDisplay();
         }
@@ -117,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Resetting timer'); // Debug: Track reset attempts
         stopTimer();
         timer = workTime;
+        isFocusSession = true; // Reset to focus session
         lastTickTime = Date.now();
         updateTimerDisplay();
         if (useServiceWorker && navigator.serviceWorker.controller) {
