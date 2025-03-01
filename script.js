@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const seconds = timer % 60;
         const timeStr = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
         timerDisplay.textContent = timeStr;
-        document.title = `Pomodoro - ${timeStr}`; // Update title
+        document.title = isFocusSession ? `Focus! - ${timeStr}` : `Break! - ${timeStr}`; // Update title
 
         // Update session label based on state
         if (!isRunning && timer > 0 && timer <= 1499) { // Between 24:59 and 00:01 (1–1499 seconds)
