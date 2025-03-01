@@ -1,29 +1,16 @@
-// v3 - Fixed Service Worker for Pomodoro Timer
+// Service Worker for Pomodoro Timer
+// Handles background timing
 
 let timer = null;
 let timerInterval = null;
 let isRunning = false;
-let lastActiveTime = Date.now();
-let startTime = null; // Track when timer started
-let pausedAt = null; // Track when timer was paused
 
-// Handle timer tick more accurately by comparing with start time
+// Handle timer tick - simple one-second decrement
 function handleTimerTick() {
     if (!isRunning || timer <= 0) return;
     
-    // Calculate elapsed time since timer started
-    const now = Date.now();
-    const elapsedSeconds = Math.floor((now - startTime) / 1000);
-    const expectedValue = startTime ? Math.max(0, pausedAt ? pausedAt : (timer - elapsedSeconds)) : timer;
-    
-    // Check for significant drift
-    if (Math.abs(timer - expectedValue) > 2) {
-        console.log(`Timer drift detected. Timer: ${timer}, Expected: ${expectedValue}`);
-        timer = expectedValue;
-    } else {
-        // Normal countdown
-        timer = Math.max(0, timer - 1);
-    }
+    // Decrement timer by 1 second
+    timer = Math.max(0, timer - 1);
     
     console.log('Timer tick, current time:', timer);
     
@@ -33,7 +20,6 @@ function handleTimerTick() {
             clients.forEach(client => {
                 client.postMessage({ timer: timer, isRunning: true });
             });
-            lastActiveTime = now;
         }
     });
     
@@ -43,7 +29,6 @@ function handleTimerTick() {
         clearInterval(timerInterval);
         timerInterval = null;
         isRunning = false;
-        startTime = null;
         
         // Notify clients about completion
         self.clients.matchAll().then(clients => {
@@ -63,29 +48,20 @@ function startTimer(initialTime, interval) {
     console.log(`Starting timer with ${initialTime} seconds and ${interval}ms interval`);
     timer = initialTime;
     isRunning = true;
-    startTime = Date.now();
-    pausedAt = null;
     
     // Clear any existing interval
     if (timerInterval) {
         clearInterval(timerInterval);
     }
     
-    // Set new interval with healthcheck
+    // Set new interval
     timerInterval = setInterval(() => {
         try {
             handleTimerTick();
         } catch (error) {
             console.error('Error in timer tick:', error);
-            // Try to recover
-            if (isRunning) {
-                clearInterval(timerInterval);
-                timerInterval = setInterval(handleTimerTick, interval);
-            }
         }
     }, interval);
-    
-    lastActiveTime = Date.now();
 }
 
 // Stop the timer
@@ -96,10 +72,7 @@ function stopTimer() {
         timerInterval = null;
     }
     
-    if (isRunning) {
-        isRunning = false;
-        pausedAt = timer;
-    }
+    isRunning = false;
     
     // Notify all clients
     self.clients.matchAll().then(clients => {
@@ -124,8 +97,6 @@ self.addEventListener('message', (event) => {
         } else if (event.data.action === 'reset') {
             timer = event.data.initialTime;
             isRunning = false;
-            startTime = null;
-            pausedAt = null;
             
             if (timerInterval) {
                 clearInterval(timerInterval);
@@ -157,17 +128,6 @@ self.addEventListener('message', (event) => {
         });
     }
 });
-
-// Keep service worker alive with periodic pings
-setInterval(() => {
-    console.log('Service worker health check, timer:', timer, 'isRunning:', isRunning);
-    
-    // Validate interval is still working if timer is running
-    if (isRunning && !timerInterval) {
-        console.log('Timer interval was lost, recreating');
-        timerInterval = setInterval(handleTimerTick, 1000);
-    }
-}, 10000); // Check every 10 seconds
 
 // Service Worker installation
 self.addEventListener('install', (event) => {
