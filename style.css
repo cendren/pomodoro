@@ -35,10 +35,15 @@ body {
 }
 
 .button-container {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two equal columns */
+  grid-gap: 10px;
+  width: 100%;
+}
+
+/* Make the toggle session button span both columns */
+#toggleSession {
+  grid-column: 1 / span 2;
 }
 
 button {
@@ -50,6 +55,7 @@ button {
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s, transform 0.1s;
+  min-width: 100px; /* Fixed minimum width for consistent sizing */
 }
 
 button:hover {
@@ -73,13 +79,17 @@ button:active {
 
 #toggleSession {
   background-color: white;
-  color: #424242;
-  border: #424242 1px solid;
+  color: #fc6c85;
+  border: #fc6c85 1px solid;
   width: 100%;
   margin-top: 10px;
 }
 
 #toggleSession:hover {
+  background-color: #f5f5f5;
+}
+
+#reset:hover {
   background-color: #f5f5f5;
 }
 
