@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let isFocusSession = true; // Track whether it's a focus or break session
     let interval = null; // Local interval for fallback
     let messageListener = null; // Store reference to service worker message listener
+    let timerStartTime = null; // When the timer was started (for drift correction)
+    let pingInterval = null; // Keep-alive ping for service worker
+    let reconnectAttempts = 0; // Track service worker reconnection attempts
 
     // Reference DOM elements
     const timerDisplay = document.getElementById('timer');
@@ -32,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const seconds = timer % 60;
         const timeStr = `${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
         timerDisplay.textContent = timeStr;
-        document.title = isFocusSession ? `Focus! - ${timeStr}` : `Break! - ${timeStr}`; // Update title
+        document.title = `Pomodoro - ${timeStr}`; // Update title
 
         // Update session label based on state
         if (!isRunning && timer > 0 && timer <= 1499) { // Between 24:59 and 00:01 (1–1499 seconds)
@@ -54,6 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Calculate elapsed time based on real time
     function calculateElapsedTime(startTime, endTime = Date.now()) {
         return Math.floor((endTime - startTime) / 1000); // Convert to seconds
+    }
+    
+    // Calculate expected timer value based on elapsed time
+    function calculateExpectedTimer(initialTimer, startTime) {
+        if (!startTime) return initialTimer;
+        const elapsed = calculateElapsedTime(startTime);
+        return Math.max(0, initialTimer - elapsed);
     }
 
     // Handle timer tick (from Service Worker or local)
@@ -107,11 +117,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (event.data.isRunning !== undefined) {
                 isRunning = event.data.isRunning;
-                startPauseButton.textContent = isRunning ? "Pause" : "Start";
+                startPauseButton.textContent = isRunning ? "Pause ⏸" : "Start ▶";
                 
-                // If timer stops and reaches zero, check if we should notify
-                if (!isRunning && timer <= 0) {
+                // Check for timer completion signal
+                if (event.data.timerComplete === true || (!isRunning && timer <= 0)) {
+                    console.log('Timer completion detected from service worker');
                     notifySessionEnd();
+                    
+                    // Auto-switch to next session
+                    if (isFocusSession) {
+                        isFocusSession = false;
+                        timer = breakTime;
+                    } else {
+                        isFocusSession = true;
+                        timer = workTime;
+                    }
+                    updateTimerDisplay();
                 }
             }
         };
@@ -124,7 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Starting timer, isRunning:', isRunning, 'timer:', timer);
         if (!isRunning) {
             lastTickTime = Date.now();
+            timerStartTime = Date.now(); // Record when timer started
             const intervalMs = 1000; // Always use 1-second intervals for accuracy
+            
             if (useServiceWorker && navigator.serviceWorker.controller) {
                 console.log('Sending start message to service worker:', { action: 'start', initialTime: timer, interval: intervalMs });
                 // Communicate with the service worker to start the timer
@@ -133,13 +156,61 @@ document.addEventListener('DOMContentLoaded', () => {
                     initialTime: timer,
                     interval: intervalMs
                 });
+                
+                // Set up ping interval to keep service worker active
+                if (pingInterval) clearInterval(pingInterval);
+                pingInterval = setInterval(() => {
+                    if (isRunning && navigator.serviceWorker.controller) {
+                        console.log('Sending ping to service worker');
+                        navigator.serviceWorker.controller.postMessage({ action: 'ping' });
+                    } else {
+                        clearInterval(pingInterval);
+                    }
+                }, 15000); // Ping every 15 seconds
             } else {
                 // Fallback: Use local setInterval
                 clearInterval(interval); // Ensure no previous interval is running
-                interval = setInterval(() => handleTick(), intervalMs);
+                interval = setInterval(() => {
+                    try {
+                        // Check for drift
+                        const expected = calculateExpectedTimer(timer, timerStartTime);
+                        if (Math.abs(timer - expected) > 2) {
+                            console.log(`Local timer drift detected: ${timer} vs expected ${expected}`);
+                            timer = expected;
+                        } else {
+                            timer = Math.max(0, timer - 1);
+                        }
+                        
+                        // Handle timer completion
+                        if (timer <= 0) {
+                            stopTimer();
+                            notifySessionEnd();
+                            
+                            // Auto-switch to next session
+                            if (isFocusSession) {
+                                isFocusSession = false;
+                                timer = breakTime;
+                            } else {
+                                isFocusSession = true;
+                                timer = workTime;
+                            }
+                        }
+                        
+                        updateTimerDisplay();
+                    } catch (error) {
+                        console.error('Error in local timer:', error);
+                        // Try to recover
+                        if (isRunning) {
+                            clearInterval(interval);
+                            interval = setInterval(handleTick, intervalMs);
+                        }
+                    }
+                }, intervalMs);
             }
+            
             isRunning = true;
-            startPauseButton.textContent = "Pause"; // Update button to "Pause"
+            startPauseButton.textContent = "Pause ⏸"; // Update button to "Pause" with icon
+            
             // Immediately update sessionLabel when starting/resuming
             if (timer > 0) {
                 sessionLabel.textContent = isFocusSession ? "Focus Session" : "Break Time";
@@ -156,12 +227,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (useServiceWorker && navigator.serviceWorker.controller) {
                 console.log('Sending stop message to service worker');
                 navigator.serviceWorker.controller.postMessage({ action: 'stop' });
+                
+                // Clear ping interval
+                if (pingInterval) {
+                    clearInterval(pingInterval);
+                    pingInterval = null;
+                }
             }
             if (interval) {
                 clearInterval(interval); // Clear local interval
+                interval = null;
             }
             isRunning = false;
-            startPauseButton.textContent = "Start"; // Update button to "Start"
+            timerStartTime = null; // Reset start time
+            startPauseButton.textContent = "Start ▶"; // Update button to "Start" with icon
         }
     }
 
@@ -303,6 +382,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }).catch(error => {
             console.error('Service Worker registration failed:', error);
         });
+        
+        // Monitor service worker connection status
+        setInterval(() => {
+            if (isRunning && !navigator.serviceWorker.controller) {
+                console.log('Service worker connection lost, attempting to reconnect');
+                reconnectAttempts++;
+                
+                if (reconnectAttempts <= 3) {
+                    navigator.serviceWorker.register('serviceWorker.js')
+                        .then(registration => {
+                            console.log('Service Worker re-registered');
+                        }).catch(error => {
+                            console.error('Service Worker re-registration failed:', error);
+                        });
+                } else if (reconnectAttempts === 4) {
+                    console.log('Falling back to local timer after multiple reconnection attempts');
+                    // Fall back to local timer
+                    clearInterval(interval);
+                    interval = setInterval(() => handleTick(), 1000);
+                }
+            } else if (navigator.serviceWorker.controller) {
+                reconnectAttempts = 0; // Reset counter when connection is good
+            }
+        }, 10000); // Check every 10 seconds
     }
 
     // Initialize: Try to load saved state, or start fresh
@@ -310,5 +413,5 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTimerDisplay();
     }
     
-    startPauseButton.textContent = "Start"; // Ensure button starts as "Start"
+    startPauseButton.textContent = "Start ▶"; // Ensure button starts as "Start" with icon
 });
